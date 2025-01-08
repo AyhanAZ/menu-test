@@ -3,6 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+<script>
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "your-api-key",
+        authDomain: "your-auth-domain",
+        databaseURL: "your-database-url",
+        projectId: "your-project-id",
+        storageBucket: "your-storage-bucket",
+        messagingSenderId: "your-messaging-sender-id",
+        appId: "your-app-id"
+    };
+
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+</script>
+
     <title>Company Name</title>
     <style>
         body {
@@ -1223,12 +1243,10 @@ function saveTable() {
                 fontSize: cell.style.fontSize || "",
                 fontStyle: cell.style.fontStyle || "",
                 width: cell.style.width || "",
-            },
+            }
         }));
     });
 
-
-    
 
     // Capture Total row values
     const totalRow = {
@@ -1250,97 +1268,111 @@ function saveTable() {
     }
 
 
-    const savedTables = JSON.parse(localStorage.getItem(savedTablesKey)) || [];
-    savedTables.push({ name: saveName, rows, totalRow, agentName, timestamp: new Date().toLocaleString() });
-    localStorage.setItem(savedTablesKey, JSON.stringify(savedTables));
-
-
-    alert("Table saved successfully!");
-    loadSavedTables();
+    // Save to Firebase
+    firebase.database().ref('tables/' + saveName).set({
+        name: saveName,
+        rows: rows,
+        totalRow: totalRow,
+        agentName: agentName,
+        timestamp: new Date().toLocaleString()
+    }).then(() => {
+        alert("Table saved successfully!");
+        loadSavedTables();
+    }).catch(error => {
+        console.error("Error saving table:", error);
+    });
 }
+
 
 
 // Load Saved Tables into the Saved Files Tab
 function loadSavedTables() {
-    const savedTables = JSON.parse(localStorage.getItem(savedTablesKey)) || [];
-    savedFilesList.innerHTML = "";
+    firebase.database().ref('tables/').once('value').then(snapshot => {
+        const savedTables = snapshot.val();
+        const savedFilesList = document.getElementById("saved-files-list");
+        savedFilesList.innerHTML = "";
 
 
-    if (savedTables.length === 0) {
-        savedFilesList.innerHTML = "<p>No saved files found.</p>";
-        return;
-    }
+        if (!savedTables) {
+            savedFilesList.innerHTML = "<p>No saved files found.</p>";
+            return;
+        }
 
 
-    savedTables.forEach((item, index) => {
-        const fileEntry = document.createElement("div");
-        fileEntry.className = "saved-file-entry";
-        fileEntry.innerHTML = `
-            <p><strong>${item.name}</strong> (Saved on: ${item.timestamp})</p>
-            <button onclick="loadTable(${index})">Load</button>
-            <button onclick="deleteTable(${index})">Delete</button>
-        `;
-        savedFilesList.appendChild(fileEntry);
+        Object.keys(savedTables).forEach(key => {
+            const item = savedTables[key];
+            const fileEntry = document.createElement("div");
+            fileEntry.className = "saved-file-entry";
+            fileEntry.innerHTML = `
+                <span><strong>${item.name}</strong> (Saved on: ${item.timestamp})</span>
+                <div>
+                    <button class="load-button" onclick="loadTable('${key}')">Load</button>
+                    <button class="delete-button" onclick="deleteTable('${key}')">Delete</button>
+                </div>
+            `;
+            savedFilesList.appendChild(fileEntry);
+        });
+    }).catch(error => {
+        console.error("Error loading saved tables:", error);
     });
 }
 
 
 // Load a Specific Table by Index, Including Total Row and Agent Name
-function loadTable(index) {
-    const savedTables = JSON.parse(localStorage.getItem(savedTablesKey)) || [];
-    if (!savedTables[index]) {
-        alert("Failed to load table.");
-        return;
-    }
+function loadTable(key) {
+    firebase.database().ref('tables/' + key).once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+            alert("Failed to load table.");
+            return;
+        }
 
 
-    const { rows, totalRow, agentName } = savedTables[index];
-    const table = document.querySelector(".resizable-table tbody");
-    table.innerHTML = ""; // Clear existing table rows
+        const { rows, totalRow, agentName } = data;
+        const table = document.querySelector(".resizable-table tbody");
+        table.innerHTML = ""; // Clear existing table rows
 
 
-    // Recreate the table rows and cells
-    rows.forEach(rowData => {
-        const row = document.createElement("tr");
-        rowData.forEach(cellData => {
-            const cell = document.createElement("td");
-            cell.textContent = cellData.content;
-            Object.assign(cell.style, cellData.styles);
-            row.appendChild(cell);
+        rows.forEach(rowData => {
+            const row = document.createElement("tr");
+            rowData.forEach(cellData => {
+                const cell = document.createElement("td");
+                cell.textContent = cellData.content;
+                Object.assign(cell.style, cellData.styles);
+                row.appendChild(cell);
+            });
+            table.appendChild(row);
         });
-        table.appendChild(row);
+
+
+        // Restore Total row values
+        document.getElementById("total-debit").value = totalRow.totalDebit;
+        document.getElementById("total-credit").value = totalRow.totalCredit;
+        document.getElementById("total-balance").value = totalRow.totalBalance;
+
+
+        // Update Agent Name
+        document.getElementById("agent-selector").textContent = agentName;
+
+
+        alert("Table loaded successfully!");
+    }).catch(error => {
+        console.error("Error loading table:", error);
     });
-
-
-    // Restore Total row values
-    document.getElementById("total-debit").value = totalRow.totalDebit;
-    document.getElementById("total-credit").value = totalRow.totalCredit;
-    document.getElementById("total-balance").value = totalRow.totalBalance;
-
-
-    // Update Agent Name
-    document.getElementById("agent-selector").textContent = agentName;
-
-
-    // Reinitialize all functionality
-    reinitializeFeatures();
-
-
-    alert("Table loaded successfully!");
 }
 
+
+   
 
 // Delete a Saved Table
-function deleteTable(index) {
-    const savedTables = JSON.parse(localStorage.getItem(savedTablesKey)) || [];
-    savedTables.splice(index, 1);
-    localStorage.setItem(savedTablesKey, JSON.stringify(savedTables));
-
-
-    alert("Saved table deleted.");
-    loadSavedTables();
+function deleteTable(key) {
+    firebase.database().ref('tables/' + key).remove().then(() => {
+        alert("Saved table deleted.");
+        loadSavedTables();
+    }).catch(error => {
+        console.error("Error deleting table:", error);
+    });
 }
-
 
 // Reinitialize All Features After Loading
 function reinitializeFeatures() {
@@ -1448,11 +1480,9 @@ function calculateTotals() {
 
 
 // Initialize Saved Files List on Page Load
+document.getElementById("save-table-button").addEventListener("click", saveTable);
 window.onload = loadSavedTables;
 
-
-// Add Save Button Event Listener
-document.getElementById("save-table-button").addEventListener("click", saveTable);
 
 
 // Initialize Add/Remove Row Buttons
