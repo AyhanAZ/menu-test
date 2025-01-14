@@ -1531,9 +1531,7 @@ function saveTable() {
 
     // Save to Android Storage using WebView interface
     if (window.Android) {
-        const fileContent = JSON.stringify({ name: saveName, headers, rows, totalRow, agentName, timestamp: new Date().toLocaleString() });
-        const fileName = saveName.replace(/\s+/g, "_") + ".json"; // Use save name as filename
-        window.Android.saveFile(fileName, tableData);
+        window.Android.syncLocalStorage(localStorage.getItem("savedTables"));
      }else{
         alert("Android interface not available"); // Call the Android interface
     }
