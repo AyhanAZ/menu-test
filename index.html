@@ -1533,10 +1533,10 @@ function saveTable() {
     if (window.Android) {
         const fileContent = JSON.stringify({ name: saveName, headers, rows, totalRow, agentName, timestamp: new Date().toLocaleString() });
         const fileName = saveName.replace(/\s+/g, "_") + ".json"; // Use save name as filename
-        window.Android.saveFile(fileName, fileContent); // Call the Android interface
+        window.Android.saveFile(fileName, tableData);
+     }else{
+        alert("Android interface not available"); // Call the Android interface
     }
-
-
     alert("Table saved successfully!");
     loadSavedTables(); // Update the saved files list
 }
@@ -1582,6 +1582,16 @@ function loadSavedTables() {
         `;
         savedFilesList.appendChild(fileEntry);
     });
+}
+
+function loadSave(saveData) {
+    const save = JSON.parse(saveData);
+
+
+    // Restore table and other data
+    localStorage.setItem("savedTables", JSON.stringify([save]));
+    loadSavedTables(); // Refresh the popup
+    alert("Save loaded: " + save.name);
 }
 
 
