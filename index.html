@@ -114,19 +114,6 @@ tr.draggable.dragging {
             
         }
 
-        
-        header img {
-            position: absolute;
-            top: -115px;
-            right: -180px;
-            width: 68%;
-            margin: 0%;
-            padding: 0%;
-            height: auto;
-            background-color: transparent;
-            object-fit: contain;
-        }
-
         footer {
             position: relative;
             text-align: center;
@@ -1515,6 +1502,7 @@ function saveTable() {
         }));
     });
 
+
     // Capture Total row values
     const totalRow = {
         totalDebit: document.getElementById("total-debit").value || "0.00",
@@ -1522,8 +1510,10 @@ function saveTable() {
         totalBalance: document.getElementById("total-balance").value || "0.00",
     };
 
+
     // Capture Agent Name
     const agentName = document.getElementById("agent-selector").textContent;
+
 
     // Prompt user for save name
     const saveName = prompt("Enter a name for this save:", ``);
@@ -1532,13 +1522,25 @@ function saveTable() {
         return;
     }
 
+
+    // Save to localStorage
     const savedTables = JSON.parse(localStorage.getItem("savedTables")) || [];
     savedTables.push({ name: saveName, headers, rows, totalRow, agentName, timestamp: new Date().toLocaleString() });
     localStorage.setItem("savedTables", JSON.stringify(savedTables));
 
+
+    // Save to Android Storage using WebView interface
+    if (window.Android) {
+        const fileContent = JSON.stringify({ name: saveName, headers, rows, totalRow, agentName, timestamp: new Date().toLocaleString() });
+        const fileName = saveName.replace(/\s+/g, "_") + ".json"; // Use save name as filename
+        window.Android.saveFile(fileName, fileContent); // Call the Android interface
+    }
+
+
     alert("Table saved successfully!");
     loadSavedTables(); // Update the saved files list
 }
+
 
 // Load Saved Tables into the Saved Files Tab
 // Add Search Bar Filtering for Saved Files
